@@ -1,0 +1,25 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Square
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+float4 Rect;
+//Create a float4 to hold the rectangle that defines the square
+
+//Return 1 if pt is in the rect parameter and 0 otherwise
+float inSquare(float2 pt, float4 rect) {
+    //int x = step(rect.x, pt.x) * step(pt.x, rect.x + rect.z);
+    //int y = step(rect.y, pt.y) * step(pt.y, rect.y + rect.w);
+    int x = step(rect.x, pt.x) - step(rect.x + rect.z, pt.x);
+    int y = step(rect.y, pt.y) - step(rect.y + rect.w, pt.y);
+    return x * y;
+}
+
+[numthreads(8, 8, 1)]
+void Square(uint3 id : SV_DispatchThreadID) {
+    //Call the inSquare function to set res
+    float res = inSquare((float2) (int2)id.xy, Rect);
+
+    Result[id.xy] = float4(0.0, 0.0, res, 1.0);
+}
