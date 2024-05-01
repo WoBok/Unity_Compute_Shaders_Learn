@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 [RequireComponent(typeof(Camera))]
 public class BasePP : MonoBehaviour
@@ -9,7 +7,7 @@ public class BasePP : MonoBehaviour
 
     protected string kernelName = "CSMain";
 
-    protected Vector2Int texSize = new Vector2Int(0,0);
+    protected Vector2Int texSize = new Vector2Int(0, 0);
     protected Vector2Int groupSize = new Vector2Int();
     protected Camera thisCamera;
 
@@ -63,9 +61,9 @@ public class BasePP : MonoBehaviour
         ClearTexture(ref renderedSource);
     }
 
-    protected void CreateTexture(ref RenderTexture textureToMake, int divide=1)
+    protected void CreateTexture(ref RenderTexture textureToMake, int divide = 1)
     {
-        textureToMake = new RenderTexture(texSize.x/divide, texSize.y/divide, 0);
+        textureToMake = new RenderTexture(texSize.x / divide, texSize.y / divide, 0);
         textureToMake.enableRandomWrite = true;
         textureToMake.Create();
     }
@@ -73,7 +71,22 @@ public class BasePP : MonoBehaviour
 
     protected virtual void CreateTextures()
     {
-        
+        texSize.x = thisCamera.pixelWidth;
+        texSize.y = thisCamera.pixelHeight;
+
+        if (shader)
+        {
+            uint x, y;
+            shader.GetKernelThreadGroupSizes(kernelHandle, out x, out y, out _);
+            groupSize.x = Mathf.CeilToInt(texSize.x / (float)x);
+            groupSize.y = Mathf.CeilToInt(texSize.y / (float)y);
+        }
+
+        CreateTexture(ref renderedSource);
+        CreateTexture(ref output);
+
+        shader.SetTexture(kernelHandle, "source", renderedSource);
+        shader.SetTexture(kernelHandle, "output", output);
     }
 
     protected virtual void OnEnable()
@@ -95,12 +108,22 @@ public class BasePP : MonoBehaviour
 
     protected virtual void DispatchWithSource(ref RenderTexture source, ref RenderTexture destination)
     {
-        
+        Graphics.Blit(source, renderedSource);
+
+        shader.Dispatch(kernelHandle, groupSize.x, groupSize.y, 1);
+
+        Graphics.Blit(output, destination);
     }
 
-    protected void CheckResolution(out bool resChange )
+    protected void CheckResolution(out bool resChange)
     {
         resChange = false;
+
+        if (texSize.x != thisCamera.pixelWidth || texSize.y != thisCamera.pixelHeight)
+        {
+            resChange = true;
+            CreateTextures();
+        }
     }
 
     protected virtual void OnRenderImage(RenderTexture source, RenderTexture destination)

@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 [ExecuteInEditMode]
 public class RingHighlight : BasePP
@@ -12,7 +10,7 @@ public class RingHighlight : BasePP
     [Range(0.0f, 1.0f)]
     public float shade;
     public Transform trackedObject;
-
+    Vector4 center;
     protected override void Init()
     {
         kernelName = "Highlight";
@@ -21,9 +19,9 @@ public class RingHighlight : BasePP
 
     private void OnValidate()
     {
-        if(!init)
+        if (!init)
             Init();
-           
+
         SetProperties();
     }
 
@@ -43,7 +41,17 @@ public class RingHighlight : BasePP
         }
         else
         {
-            CheckResolution(out _);
+            if (trackedObject && thisCamera)
+            {
+                Vector3 pos = thisCamera.WorldToScreenPoint(trackedObject.position);
+
+                center.x = pos.x;
+                center.y = pos.y;
+                shader.SetVector("center", center);
+            }
+            bool resChange = false;
+            CheckResolution(out resChange);
+            if (resChange) SetProperties();
             DispatchWithSource(ref source, ref destination);
         }
     }
