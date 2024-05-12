@@ -1,9 +1,11 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel HorzPass
+#pragma kernel VertiPass
 #pragma kernel Highlight
 
 shared Texture2D<float4> source;
 shared RWTexture2D<float4> horzOutput;
+shared RWTexture2D<float4> vertiOutput;
 RWTexture2D<float4> output;
 float radius;
 float edgeWidth;
@@ -11,22 +13,66 @@ float shade;
 float4 center;
 int blurRadius;
 
-float inCircle( float2 pt, float2 center, float radius, float edgeWidth ){
+float inCircle(float2 pt, float2 center, float radius, float edgeWidth) {
     float len = length(pt - center);
-    return 1.0 - smoothstep(radius-edgeWidth, radius, len);
+    return 1.0 - smoothstep(radius - edgeWidth, radius, len);
 }
 
 [numthreads(8, 8, 1)]
-void HorzPass(uint3 id : SV_DispatchThreadID)
-{
+void HorzPass(uint3 id : SV_DispatchThreadID) {
+    //uint left = max(0, id.x - (uint) blurRadius);
+    //uint2 index = uint2(left, id.y);
+    //错误的转换方式，因为补码存储的原因，负数存储为uint时可能会是一个很大的数字
+    //shader中对贴图的采样往往采用tilling的方式，那么这样还是没能避免负数的情况
     
+    int left = max(0, (int)id.x - blurRadius);
+
+    uint2 index = uint2((uint)left, id.y);
+
+    int count = min(blurRadius, (int)id.x) + min(blurRadius, source.Length.x - (int)id.x);
+
+    float4 color = 0;
+
+    [unroll(100)]//性能优化方式，视频中又笼统的讲解
+    for (int i = 0; i < count; i++) {
+        color += source[index];
+        index.x++;
+    }
+
+    color /= (float)count;
+
+    horzOutput[id.xy] = color;
 }
 
 [numthreads(8, 8, 1)]
-void Highlight(uint3 id : SV_DispatchThreadID)
-{
-    float4 color = source[id.xy];
+void VertiPass(uint3 id : SV_DispatchThreadID) {
+    int buttom = max(0, (int)id.y - blurRadius);
+
+    uint2 index = uint2(id.x, (uint)buttom);
+
+    int count = min(blurRadius, (int)id.y) + min(blurRadius, vertiOutput.Length.y - (int)id.y);
+
+    float4 color = 0;
+
+    [unroll(100)]
+    for (int i = 0; i < count; i++) {
+        color += horzOutput[index];
+        index.y++;
+    }
+
+    color /= (float)count;
+
+    vertiOutput[id.xy] = color;
+}
+
+[numthreads(8, 8, 1)]
+void Highlight(uint3 id : SV_DispatchThreadID) {
+    float4 color = vertiOutput[id.xy];
+
+    half4 srcColor = source[id.xy];
+    half4 shadedBlurColor = color * shade;
+    float highlight = inCircle((float2)id.xy, center.xy, radius, edgeWidth);
+    color = lerp(shadedBlurColor, srcColor, highlight);
 
     output[id.xy] = color;
-
 }

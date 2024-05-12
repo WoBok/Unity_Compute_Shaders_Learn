@@ -20,12 +20,17 @@ public class BlurHighlight : BaseCompletePP
     RenderTexture horzOutput;
     int kernelHorzPassID;
 
+    RenderTexture vertiOutput;
+    int kernelVertiPassID;
+
     protected override void Init()
     {
         center = new Vector4();
         kernelName = "Highlight";
         base.Init();
+        kernelHandle = shader.FindKernel(kernelName);
         kernelHorzPassID = shader.FindKernel("HorzPass");
+        kernelVertiPassID = shader.FindKernel("VertiPass");
     }
 
     protected override void CreateTextures()
@@ -33,10 +38,17 @@ public class BlurHighlight : BaseCompletePP
         base.CreateTextures();
 
         shader.SetTexture(kernelHorzPassID, "source", renderedSource);
+        shader.SetTexture(kernelHandle, "source", renderedSource);
+
         CreateTexture(ref horzOutput);
+        CreateTexture(ref vertiOutput);
 
         shader.SetTexture(kernelHorzPassID, "horzOutput", horzOutput);
-        shader.SetTexture(kernelHandle, "output", horzOutput);
+        shader.SetTexture(kernelVertiPassID, "horzOutput", horzOutput);
+        shader.SetTexture(kernelVertiPassID, "vertiOutput", vertiOutput);
+        shader.SetTexture(kernelHandle, "horzOutput", horzOutput);
+        shader.SetTexture(kernelHandle, "vertiOutput", vertiOutput);
+        shader.SetTexture(kernelHandle, "output", output);
     }
 
     private void OnValidate()
@@ -62,6 +74,8 @@ public class BlurHighlight : BaseCompletePP
 
         Graphics.Blit(source, renderedSource);
 
+        shader.Dispatch(kernelHorzPassID, groupSize.x, groupSize.y, 1);
+        shader.Dispatch(kernelVertiPassID, groupSize.x, groupSize.y, 1);
         shader.Dispatch(kernelHandle, groupSize.x, groupSize.y, 1);
 
         Graphics.Blit(output, destination);

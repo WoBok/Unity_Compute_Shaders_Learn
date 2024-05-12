@@ -5,7 +5,7 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class GaussianBlurHighlight : BaseCompletePP
 {
-    [Range(0, 50)]
+    [Range(1, 50)]
     public int blurRadius = 20;
     [Range(0.0f, 100.0f)]
     public float radius = 10;
