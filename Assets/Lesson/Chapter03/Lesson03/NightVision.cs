@@ -12,9 +12,9 @@ public class NightVision : BaseCompletePP
     [Range(0.0f, 100.0f)]
     public float softenEdge = 3;
     public Color tint = Color.green;
-    [Range(50, 500)]
+    [Range(1, 500)]
     public int lines = 100;
-
+    public Transform player;
     private void OnValidate()
     {
         if(!init)
@@ -36,6 +36,7 @@ public class NightVision : BaseCompletePP
     protected override void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
         shader.SetFloat("time", Time.time);
+        shader.SetVector("center",thisCamera.WorldToScreenPoint(player.position));
         base.OnRenderImage(source, destination);
     }
 }

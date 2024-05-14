@@ -1,0 +1,66 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+Texture2D<float4> source;
+RWTexture2D<float4> output;
+float radius;
+float edgeWidth;
+int lines;
+float4 tintColor;
+float tintStrength;
+float time;
+float2 center;
+
+float random(float2 pt, float seed) {
+    const float a = 12.9898;
+    const float b = 78.233;
+    const float c = 43758.543123;
+    return frac(sin(dot(pt, float2(a, b)) + seed) * c);
+}
+
+float inCircle(float2 pt, float2 center, float radius, float edgeWidth) {
+    float len = length(pt - center);
+    return 1.0 - smoothstep(radius - edgeWidth, radius, len);
+}
+
+float inCircleStep(float2 pt, float2 center, float radius) {
+    float len = length(pt - center);
+    return step(len, radius);
+}
+
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID) {
+    uint2 index = (uint2)id.xy / 3 * 3;
+
+    float noise = random((float2)id.xy, time);
+
+    half3 srcColor = lerp(source[id.xy].rgb * 2, source[index].rgb, noise);
+
+    float3 grayScale = (srcColor.r + srcColor.g + srcColor.b) / 3;
+    float3 tinted = grayScale * tintColor.rgb;
+    half3 finalColor = lerp(srcColor, tinted, tintStrength);
+    
+    float uvY = (float)id.y / (float) source.Length.y;
+    float scanLine = saturate(smoothstep(0.1, 0.2, frac(uvY * lines + time * 3)) + 0.3);
+
+    finalColor = lerp(source[id.xy].rgb * 0.1, finalColor, scanLine);
+
+    center.x -= radius * 0.7;
+    float innerCircleLeft = inCircleStep((float2)id.xy, center.xy, radius - edgeWidth);
+    float outerCircleLeft = inCircleStep((float2)id.xy, center.xy, radius);
+
+    center.x += radius * 1.4;
+    float innerCircleRight = inCircleStep((float2)id.xy, center.xy, radius - edgeWidth);
+    float outerCircleRight = inCircleStep((float2)id.xy, center.xy, radius);
+
+
+    float ringLeft = outerCircleLeft - innerCircleLeft;
+    float ringRight = outerCircleRight - innerCircleRight;
+    half3 ringColor = finalColor * (ringLeft - (ringLeft * innerCircleRight) + ringRight - (ringRight * innerCircleLeft) ) * 0.5;
+
+    finalColor *= saturate(innerCircleLeft + innerCircleRight);
+
+    finalColor += ringColor;
+
+    output[id.xy] = half4(finalColor, 1);
+}
