@@ -17,7 +17,7 @@ public class ParticleFun : MonoBehaviour
         public float life;
     }
 
-    const int SIZE_PARTICLE = 7 * sizeof(float);
+    const int SIZE_PARTICLE = (3 * 2 + 1 * 1) * sizeof(float);
 
     public int particleCount = 1000000;
     public Material material;
@@ -28,9 +28,9 @@ public class ParticleFun : MonoBehaviour
     int kernelID;
     ComputeBuffer particleBuffer;
 
-    int groupSizeX; 
-    
-    
+    int groupSizeX;
+
+
     // Use this for initialization
     void Start()
     {
@@ -44,7 +44,18 @@ public class ParticleFun : MonoBehaviour
 
         for (int i = 0; i < particleCount; i++)
         {
-            //TO DO: Initialize particle
+            var position = Vector3.zero;
+            position.x = Random.value * 2 - 1;
+            position.y = Random.value * 2 - 1;
+            position.z = Random.value * 2 - 1;
+            position.Normalize();
+            position *= Random.value * 0.5f;
+            position.z += 3;
+            particleArray[i].position = position;
+
+            particleArray[i].velocity = Vector3.zero;
+
+            particleArray[i].life = Random.value * 5 + 1;
         }
 
         // create compute buffer
@@ -108,6 +119,6 @@ public class ParticleFun : MonoBehaviour
 
         cursorPos.x = p.x;
         cursorPos.y = p.y;
-        
+
     }
 }
