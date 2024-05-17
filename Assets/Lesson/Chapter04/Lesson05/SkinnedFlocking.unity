@@ -448,7 +448,7 @@ MonoBehaviour:
   neighbourDistance: 2
   boidSpeedVariation: 0.8
   boidFrameSpeed: 10
-  frameInterpolation: 1
+  frameInterpolation: 0
   boidMaterial: {fileID: 2100000, guid: 167b6806939d4a24497f112481564573, type: 2}
 --- !u!4 &1669663790
 Transform:
@@ -459,7 +459,7 @@ Transform:
   m_GameObject: {fileID: 1669663788}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 50}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:

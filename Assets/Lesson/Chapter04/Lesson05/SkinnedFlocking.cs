@@ -1,15 +1,14 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
-public class SkinnedFlocking : MonoBehaviour {
+public class SkinnedFlocking : MonoBehaviour
+{
     public struct Boid
     {
         public Vector3 position;
         public Vector3 direction;
         public float noise_offset;
         public float frame;
-        
+
         public Boid(Vector3 pos, Vector3 dir, float offset)
         {
             position.x = pos.x;
@@ -42,7 +41,7 @@ public class SkinnedFlocking : MonoBehaviour {
     public bool frameInterpolation = true;
 
     Mesh boidMesh;
-    
+
     private int kernelHandle;
     private ComputeBuffer boidsBuffer;
     private ComputeBuffer vertexAnimationBuffer;
@@ -86,7 +85,7 @@ public class SkinnedFlocking : MonoBehaviour {
             float offset = Random.value * 1000.0f;
             boidsArray[i] = new Boid(pos, rot.eulerAngles, offset);
         }
-        
+
     }
 
     void InitShader()
@@ -129,10 +128,11 @@ public class SkinnedFlocking : MonoBehaviour {
     {
         shader.SetFloat("time", Time.time);
         shader.SetFloat("deltaTime", Time.deltaTime);
+        shader.SetVector("flockPosition", target.transform.position);
 
         shader.Dispatch(kernelHandle, groupSizeX, 1, 1);
 
-        Graphics.DrawMeshInstancedIndirect( boidMesh, 0, boidMaterial, bounds, argsBuffer, 0, props);
+        Graphics.DrawMeshInstancedIndirect(boidMesh, 0, boidMaterial, bounds, argsBuffer, 0, props);
     }
 
     void OnDestroy()
@@ -146,7 +146,46 @@ public class SkinnedFlocking : MonoBehaviour {
     {
         boidSMR = boidObject.GetComponentInChildren<SkinnedMeshRenderer>();
 
+        animator = boidObject.GetComponentInChildren<Animator>();
+
+        int iLayer = 0;
+
+        AnimatorStateInfo animatorStateInfo = animator.GetCurrentAnimatorStateInfo(iLayer);
+
+        Mesh bakedMesh = new Mesh();
+        float sampleTime = 0;
+        float perFrameTime = 0;
+
+        numOfFrames = Mathf.ClosestPowerOfTwo((int)(animationClip.frameRate * animationClip.length));
+        perFrameTime = animationClip.length / numOfFrames;
+
         boidMesh = boidSMR.sharedMesh;
+
+        var vertexCount = boidSMR.sharedMesh.vertexCount;
+
+        var vertexAnimationData = new Vector4[vertexCount * numOfFrames];
+
+        for (int i = 0; i < numOfFrames; i++)
+        {
+            animator.Play(animatorStateInfo.shortNameHash, iLayer, sampleTime);
+            animator.Update(0);
+
+            boidSMR.BakeMesh(bakedMesh);
+
+            for (int j = 0; j < vertexCount; j++)
+            {
+                Vector4 vertex = bakedMesh.vertices[j];
+                vertex.w = 1;
+                vertexAnimationData[j * numOfFrames + i] = vertex;
+            }
+
+            sampleTime += perFrameTime;
+        }
+
+        vertexAnimationBuffer = new ComputeBuffer(vertexCount * numOfFrames, 4 * sizeof(float));
+        vertexAnimationBuffer.SetData(vertexAnimationData);
+
+        boidMaterial.SetBuffer("vertexAnimation", vertexAnimationBuffer);
 
         boidObject.SetActive(false);
     }

@@ -1,5 +1,4 @@
-Shader "Flocking/Skinned" {
-    // StructuredBuffer + SurfaceShader
+﻿Shader "Flocking/Fish" {
 
     Properties {
         _Color ("Color", Color) = (1, 1, 1, 1)
@@ -13,22 +12,12 @@ Shader "Flocking/Skinned" {
     SubShader {
         
         CGPROGRAM
+        
         #include "UnityCG.cginc"
 
         sampler2D _MainTex;
         sampler2D _BumpMap;
         sampler2D _MetallicGlossMap;
-        struct appdata_custom {
-            float4 vertex : POSITION;
-            float3 normal : NORMAL;
-            float4 texcoord : TEXCOORD0;
-            float4 tangent : TANGENT;
-            
-            uint id : SV_VertexID;
-            uint inst : SV_InstanceID;
-
-            UNITY_VERTEX_INPUT_INSTANCE_ID
-        };
         struct Input {
             float2 uv_MainTex;
             float2 uv_BumpMap;
@@ -38,26 +27,22 @@ Shader "Flocking/Skinned" {
         half _Metallic;
         fixed4 _Color;
         
-        #pragma multi_compile __ FRAME_INTERPOLATION
         #pragma surface surf Standard vertex:vert addshadow nolightmap
         #pragma instancing_options procedural:setup
 
+        float3 _BoidPosition;
+        float _FinOffset;
         float4x4 _Matrix;
-        int _CurrentFrame;
-        int _NextFrame;
-        float _FrameInterpolation;
-        int numOfFrames;
-
+        
         #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
             struct Boid {
                 float3 position;
                 float3 direction;
                 float noise_offset;
-                float frame;
+                float theta;
             };
 
             StructuredBuffer<Boid> boidsBuffer;
-            StructuredBuffer<float4> vertexAnimation;
         #endif
 
         float4x4 create_matrix(float3 pos, float3 dir, float3 up) {
@@ -71,28 +56,32 @@ Shader "Flocking/Skinned" {
                 0, 0, 0, 1
             );
         }
-        
-        void vert(inout appdata_custom v) {
-            #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
-                #ifdef FRAME_INTERPOLATION
-                    v.vertex = lerp(vertexAnimation[v.id * numOfFrames + _CurrentFrame], vertexAnimation[v.id * numOfFrames + _NextFrame], _FrameInterpolation);
-                #else
-                    v.vertex = vertexAnimation[v.id * numOfFrames + _CurrentFrame];
-                #endif
 
+        half remap(half x, half t1, half t2, half s1, half s2) {
+            return (x - t1) / (t2 - t1) * (s2 - s1) + s1;
+        }
+
+        void vert(inout appdata_full v, out Input data) {
+            UNITY_INITIALIZE_OUTPUT(Input, data);
+
+            #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
+                if (v.vertex.z < - 0.2) {
+                    //If v.vertex.z is less than -0.2 then this is a tail vertex
+                    //The sin curve between 3π/2 and 2π ramps up from -1 to 0
+                    //Use this curve plus 1, ie a curve from 0 to 1 to control the strength of the swish
+                    //Apply the value you calculate as an offset to v.vertex.x
+                    v.vertex.x += (sin(abs(v.vertex.z + 0.2) * 5 * UNITY_HALF_PI + 3 * UNITY_HALF_PI) + 1) * 0.3 *_FinOffset;
+                }
                 v.vertex = mul(_Matrix, v.vertex);
             #endif
         }
 
         void setup() {
             #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
+                //Convert the boid theta value to a value between -1 and 1
+                //Hint: use sin and save the value as _FinOffset
+                _FinOffset = sin(boidsBuffer[unity_InstanceID].theta);
                 _Matrix = create_matrix(boidsBuffer[unity_InstanceID].position, boidsBuffer[unity_InstanceID].direction, float3(0.0, 1.0, 0.0));
-                _CurrentFrame = boidsBuffer[unity_InstanceID].frame;
-                #ifdef FRAME_INTERPOLATION
-                    _NextFrame = _CurrentFrame + 1;
-                    if (_NextFrame >= numOfFrames) _NextFrame = 0;
-                    _FrameInterpolation = frac(boidsBuffer[unity_InstanceID].frame);
-                #endif
             #endif
         }
         
