@@ -36,6 +36,7 @@ public class SkinnedFlocking : MonoBehaviour
     public float rotationSpeed = 1f;
     public float boidSpeed = 1f;
     public float neighbourDistance = 1f;
+    [Range(0, 1)]
     public float boidSpeedVariation = 1f;
     public float boidFrameSpeed = 10f;
     public bool frameInterpolation = true;

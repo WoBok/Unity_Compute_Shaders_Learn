@@ -23,7 +23,6 @@ struct Boid {
     float3 position;
     float3 direction;
     float noise_offset;
-    float frame;
 };
 
 RWStructuredBuffer<Boid> boidsBuffer;
@@ -85,8 +84,6 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     boid.direction = lerp((direction), normalize(boid_dir), prop);
 
     boid.position += boid.direction * velocity * deltaTime;
-
-    boid.frame = boid.frame + velocity * deltaTime * boidFrameSpeed;
 
     boidsBuffer[id.x] = boid;
 }
